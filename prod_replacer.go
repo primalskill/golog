@@ -1,4 +1,4 @@
-package log
+package golog
 
 import (
 	"log/slog"
