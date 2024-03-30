@@ -55,12 +55,12 @@ func (p *DevHandler) Handle(_ context.Context, r slog.Record) error {
 
 	// append the source (file:line)
 	if r.PC != 0 {
-		buf = p.appendSource(buf)
+		buf = p.appendSource(buf, r.PC, fgColor)
 	}
 
 	// append time
 	if r.Time.IsZero() != true {
-		buf = p.appendTime(buf, r.Time)
+		buf = p.appendTime(buf, r.Time, fgColor)
 	}
 
 	buf = append(buf, '\n')
@@ -149,24 +149,23 @@ func (p *DevHandler) appendLevelMessage(buf []byte, level slog.Level, msg string
 	return buf, colorBg, colorFg
 }
 
-func (p *DevHandler) appendTime(buf []byte, t time.Time) []byte {
-	buf = fmt.Appendf(buf, " | %s", t.Format(time.RFC3339))
+func (p *DevHandler) appendTime(buf []byte, t time.Time, fgColor []byte) []byte {
+	buf = fmt.Appendf(buf, "\n%*s", 2, "") // indent
+	buf = fmt.Appendf(buf, "%sT%s : %s", fgColor, colorReset, t.Format(time.RFC3339))
+
 	return buf
 }
 
-func (p *DevHandler) appendSource(buf []byte) []byte {
-	var pcs [1]uintptr
-
-	runtime.Callers(5, pcs[:])
-	fs := runtime.CallersFrames([]uintptr{pcs[0]})
-	f, _ := fs.Next()
+func (p *DevHandler) appendSource(buf []byte, pc uintptr, fgColor []byte) []byte {
+	f, _ := runtime.CallersFrames([]uintptr{pc}).Next()
 
 	path := f.File
 	if len(path) == 0 {
 		path = "unknown"
 	}
 
-	buf = fmt.Appendf(buf, " | %s:%d", path, f.Line)
+	buf = fmt.Appendf(buf, "\n%*s", 2, "") // indent
+	buf = fmt.Appendf(buf, "%sS%s : %s:%d", fgColor, colorReset, path, f.Line)
 
 	return buf
 }
@@ -272,7 +271,9 @@ func (p *DevHandler) appendPskError(buf []byte, err, nextErr errors.Error, inden
 
 	// add the source if any
 	if len(err.Source) > 0 {
-		buf = fmt.Appendf(buf, " | %s", err.Source)
+		buf = append(buf, '\n')
+		buf = fmt.Appendf(buf, "%*s", indent*2+3, "")
+		buf = fmt.Appendf(buf, "%s|- source%s : %s", colorFgRed, colorReset, err.Source)
 	}
 
 	if len(err.Meta) > 0 {
