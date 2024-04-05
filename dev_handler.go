@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"reflect"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
-
-	"github.com/primalskill/errors"
 )
 
 var (
@@ -171,12 +169,12 @@ func (p *DevHandler) appendSource(buf []byte, pc uintptr, fgColor []byte) []byte
 }
 
 func (p *DevHandler) appendAttr(buf []byte, a slog.Attr, fgColor []byte, indent int) []byte {
-	a.Value = a.Value.Resolve()
-
 	// ignore empty attributes
 	if a.Equal(slog.Attr{}) {
 		return buf
 	}
+
+	a.Value = a.Value.Resolve()
 
 	// in case of error, color the keys red
 	valAny := a.Value.Any()
@@ -218,70 +216,31 @@ func (p *DevHandler) appendAttr(buf []byte, a slog.Attr, fgColor []byte, indent 
 			buf = p.appendAttr(buf, ga, fgColor, indent)
 		}
 
+	// it's not a known slog.Kind, figure out the type using reflection
 	default:
-		// verify if attr is an error
 		valAny := a.Value.Any()
+
+		// verify if attr is an error
 		err, isErr := valAny.(error)
 		if isErr == true {
 			buf = p.appendError(buf, err, indent)
-		} else {
-			// output the string representation of the value
-			buf = append(buf, a.Value.String()...)
+			return buf
 		}
-	}
 
-	return buf
-}
+		// append the type, the function resolves the exact types
+		buf = p.appendType(buf, reflect.ValueOf(valAny), fgColor, indent)
 
-func (p *DevHandler) appendError(buf []byte, err error, indent int) []byte {
-	if err == nil {
-		return buf
-	}
+		// switch reflect.TypeOf(valAny).Kind() {
+		// case reflect.Struct:
+		// 	buf = append(buf, '\n')
+		// 	buf = p.appendStruct(buf, valAny, fgColor, indent)
+		// }
 
-	// convert and flatten err (if it's wrapped) to []errors.Error
-	errs := errors.Flatten(err)
+		// fmt.Printf("\n\n\n%+v\n\n\n", reflect.TypeOf(valAny).Kind())
+		// fmt.Printf("\n\n\n%+v\n\n\n", reflect.ValueOf(valAny))
 
-	for i, err := range errs {
-		if i+1 < len(errs) {
-			buf = p.appendPskError(buf, err, errs[i+1], indent)
-		} else {
-			buf = p.appendPskError(buf, err, errors.Error{}, indent)
-		}
-	}
-
-	return buf
-}
-
-func (p *DevHandler) appendPskError(buf []byte, err, nextErr errors.Error, indent int) []byte {
-	if len(err.Msg) == 0 {
-		return buf
-	}
-
-	msgErr := err.Error()
-	msgNextError := nextErr.Error()
-
-	msg, _ := strings.CutSuffix(msgErr, msgNextError)
-	msg = strings.TrimSpace(msg)
-	msg = strings.TrimRight(msg, ":")
-
-	// add the message
-	buf = append(buf, '\n')
-	buf = fmt.Appendf(buf, "%*s", indent*2+3, "")
-	buf = fmt.Appendf(buf, "%s|- msg%s : %s", colorFgRed, colorReset, msg)
-
-	// add the source if any
-	if len(err.Source) > 0 {
-		buf = append(buf, '\n')
-		buf = fmt.Appendf(buf, "%*s", indent*2+3, "")
-		buf = fmt.Appendf(buf, "%s|- source%s : %s", colorFgRed, colorReset, err.Source)
-	}
-
-	if len(err.Meta) > 0 {
-		for mk, mv := range err.Meta {
-			buf = append(buf, '\n')
-			buf = fmt.Appendf(buf, "%*s", indent*2+5, "")
-			buf = fmt.Appendf(buf, "%s|- %s%s : %s", colorFgRed, mk, colorReset, mv)
-		}
+		// output the string representation of the value
+		// buf = append(buf, a.Value.String()...)
 	}
 
 	return buf
