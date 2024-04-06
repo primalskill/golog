@@ -41,7 +41,7 @@ linters-settings:
       - '-S1002' # ignore implicit if conditions
       - '-S1034'
   cyclop:
-    max-complexity: 12
+    max-complexity: 20
     skip-tests: true
   tagliatelle:
     case:

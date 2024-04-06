@@ -51,20 +51,21 @@ func (p *DevHandler) Handle(_ context.Context, r slog.Record) error {
 	// append the level and the message
 	buf, _, fgColor := p.appendLevelMessage(buf, r.Level, r.Message)
 
-	// append the source (file:line)
-	if r.PC != 0 {
-		buf = p.appendSource(buf, r.PC, fgColor)
-	}
-
 	// append time
 	if r.Time.IsZero() != true {
 		buf = p.appendTime(buf, r.Time, fgColor)
+	}
+
+	// append the source (file:line)
+	if r.PC != 0 {
+		buf = p.appendSource(buf, r.PC, fgColor)
 	}
 
 	buf = append(buf, '\n')
 
 	// parse WithAttr and WithGroup
 	goas := p.goas
+
 	if r.NumAttrs() == 0 {
 		// If the record has no Attrs, remove groups at the end of the list; they are empty.
 		for len(goas) > 0 && goas[len(goas)-1].group != "" {
@@ -75,11 +76,14 @@ func (p *DevHandler) Handle(_ context.Context, r slog.Record) error {
 	indent := 0
 	for _, goa := range goas {
 		if goa.group != "" {
-			buf = fmt.Appendf(buf, "%*s%s:\n", indent*4, "", goa.group)
+			buf = fmt.Appendf(buf, "%*s", indent+2, "") // indent
+			buf = fmt.Appendf(buf, "%sGroup%s : %s\n", fgColor, colorReset, goa.group)
 			indent++
 		} else {
 			for _, a := range goa.attrs {
-				buf = p.appendAttr(buf, a, fgColor, indent)
+				buf = fmt.Appendf(buf, "%*s", 2, "") // indent
+				buf = fmt.Appendf(buf, "%sAttrib%s :\n", fgColor, colorReset)
+				buf = p.appendAttr(buf, a, fgColor, 1)
 				buf = append(buf, '\n')
 			}
 		}
@@ -87,6 +91,8 @@ func (p *DevHandler) Handle(_ context.Context, r slog.Record) error {
 
 	// append the attrs if any
 	r.Attrs(func(a slog.Attr) bool {
+		buf = fmt.Appendf(buf, "%*s", 2, "") // indent
+		buf = fmt.Appendf(buf, "%sAttrib%s :\n", fgColor, colorReset)
 		buf = p.appendAttr(buf, a, fgColor, 1)
 		buf = append(buf, '\n')
 		return true
@@ -149,7 +155,7 @@ func (p *DevHandler) appendLevelMessage(buf []byte, level slog.Level, msg string
 
 func (p *DevHandler) appendTime(buf []byte, t time.Time, fgColor []byte) []byte {
 	buf = fmt.Appendf(buf, "\n%*s", 2, "") // indent
-	buf = fmt.Appendf(buf, "%sT%s : %s", fgColor, colorReset, t.Format(time.RFC3339))
+	buf = fmt.Appendf(buf, "%sTime%s : %s", fgColor, colorReset, t.Format(time.RFC3339))
 
 	return buf
 }
@@ -163,7 +169,7 @@ func (p *DevHandler) appendSource(buf []byte, pc uintptr, fgColor []byte) []byte
 	}
 
 	buf = fmt.Appendf(buf, "\n%*s", 2, "") // indent
-	buf = fmt.Appendf(buf, "%sS%s : %s:%d", fgColor, colorReset, path, f.Line)
+	buf = fmt.Appendf(buf, "%sSource%s : %s:%d", fgColor, colorReset, path, f.Line)
 
 	return buf
 }
@@ -213,6 +219,8 @@ func (p *DevHandler) appendAttr(buf []byte, a slog.Attr, fgColor []byte, indent 
 		indent++
 		for _, ga := range attrs {
 			buf = append(buf, '\n')
+			buf = fmt.Appendf(buf, "%*s", 2, "") // indent
+			buf = fmt.Appendf(buf, "%sAttrib%s :\n", fgColor, colorReset)
 			buf = p.appendAttr(buf, ga, fgColor, indent)
 		}
 
@@ -220,27 +228,15 @@ func (p *DevHandler) appendAttr(buf []byte, a slog.Attr, fgColor []byte, indent 
 	default:
 		valAny := a.Value.Any()
 
-		// verify if attr is an error
+		// Check if valAny is an error
 		err, isErr := valAny.(error)
 		if isErr == true {
-			buf = p.appendError(buf, err, indent)
+			buf = p.appendError(buf, err, 1)
 			return buf
 		}
 
 		// append the type, the function resolves the exact types
 		buf = p.appendType(buf, reflect.ValueOf(valAny), fgColor, indent)
-
-		// switch reflect.TypeOf(valAny).Kind() {
-		// case reflect.Struct:
-		// 	buf = append(buf, '\n')
-		// 	buf = p.appendStruct(buf, valAny, fgColor, indent)
-		// }
-
-		// fmt.Printf("\n\n\n%+v\n\n\n", reflect.TypeOf(valAny).Kind())
-		// fmt.Printf("\n\n\n%+v\n\n\n", reflect.ValueOf(valAny))
-
-		// output the string representation of the value
-		// buf = append(buf, a.Value.String()...)
 	}
 
 	return buf
