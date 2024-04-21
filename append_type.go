@@ -35,7 +35,7 @@ func (p *DevHandler) appendType(buf []byte, val reflect.Value, fgColor []byte, i
 	case reflect.Complex64, reflect.Complex128:
 		buf = p.appendPrimitive(buf, val)
 	case reflect.String:
-		buf = p.appendString(buf, val)
+		buf = p.appendString(buf, val, indent)
 	case reflect.Array, reflect.Slice:
 		buf = p.appendSlice(buf, val, fgColor, indent)
 	case reflect.Map:

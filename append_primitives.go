@@ -1,6 +1,7 @@
 package golog
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 )
@@ -17,11 +18,17 @@ func (p *DevHandler) appendPrimitive(buf []byte, val reflect.Value) []byte {
 }
 
 // appendString adds val as string to buf. val can be empty, in this case write out empty.
-func (p *DevHandler) appendString(buf []byte, val reflect.Value) []byte {
+func (p *DevHandler) appendString(buf []byte, val reflect.Value, indent int) []byte {
 	str := val.String()
 
 	if len(str) == 0 {
 		buf = fmt.Appendf(buf, "%sempty%s", colorFaint, colorReset)
+		return buf
+	}
+
+	// verify if the string is JSON
+	if json.Valid([]byte(str)) == true {
+		buf = p.appendJSON(buf, []byte(str), indent)
 		return buf
 	}
 

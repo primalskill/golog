@@ -1,6 +1,7 @@
 package golog
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 )
@@ -25,10 +26,20 @@ func (p *DevHandler) appendSlice(buf []byte, val reflect.Value, fgColor []byte, 
 	}
 
 	// []byte is an alias for []uint8 which is a slice, test if it's truly []byte or not
+	// this is done to check if []byte is actually a JSON string
 	if val.CanConvert(reflect.TypeOf([]byte(nil))) {
 		b := val.Bytes()
-		buf = append(buf, string(b)...)
 
+		validJSON := json.Valid(b)
+
+		// Not a valid JSON, output it as-is and return early
+		if validJSON == false {
+			buf = append(buf, b...)
+			return buf
+		}
+
+		// Valid JSON, prettify it
+		buf = p.appendJSON(buf, b, indent)
 		return buf
 	}
 

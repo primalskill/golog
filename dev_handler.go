@@ -2,6 +2,7 @@ package golog
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -199,7 +200,15 @@ func (p *DevHandler) appendAttr(buf []byte, a slog.Attr, fgColor []byte, indent 
 
 	case slog.KindString:
 		if len(a.Value.String()) > 0 {
-			buf = append(buf, a.Value.String()...)
+
+			// verify if the string is JSON
+			if json.Valid([]byte(a.Value.String())) == true {
+				buf = p.appendJSON(buf, []byte(a.Value.String()), indent)
+				return buf
+			} else {
+				buf = append(buf, a.Value.String()...)
+			}
+
 		} else {
 			buf = fmt.Appendf(buf, "%sempty%s", colorFaint, colorReset)
 		}
