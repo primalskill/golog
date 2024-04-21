@@ -1,6 +1,6 @@
 # Log handler for the Go [log/slog](https://pkg.go.dev/log/slog) package
 
-## Usage
+## Overview
 
 There are three handlers implemented in this package with a heavy focus on the development handler.
 
