@@ -26,7 +26,7 @@ slog.Info("this log will be pretty printed")
 
 ### Output
 
-
+![Pasted_Image_21_04_2024__14_39](https://github.com/primalskill/golog/assets/489775/92d76a6f-78b1-42a8-95b7-1cc17c92c3d5)
 
 
 Example code used to generate the output: https://go.dev/play/p/Y0d-i5_SutP
